@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export function middleware(req) {
+export default function proxy(req) {
   const basicAuth = req.headers.get('authorization');
   const url = req.nextUrl;
 
@@ -29,6 +29,8 @@ export function middleware(req) {
 
   return NextResponse.next();
 }
+
+export { proxy as middleware };
 
 // See "Matching Paths" below to learn more
 export const config = {
