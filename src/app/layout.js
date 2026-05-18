@@ -23,7 +23,6 @@ export default function RootLayout({ children }) {
                 <li><a href="/">Home</a></li>
                 <li><a href="/products">Products</a></li>
                 <li><a href="/contact">Contact</a></li>
-                <li><a href="/admin" className="btn btn-outline" style={{padding: '0.4rem 1rem'}}>Admin</a></li>
               </ul>
             </div>
           </div>
