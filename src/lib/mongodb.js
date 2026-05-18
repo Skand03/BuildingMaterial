@@ -1,4 +1,10 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Force Node.js to resolve DNS as IPv4 first (fixes querySrv ECONNREFUSED in Node 17+ / Windows environments)
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
