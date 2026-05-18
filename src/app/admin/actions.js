@@ -1,48 +1,26 @@
 'use server';
 
-import { 
-  getProducts as getDbProducts, 
-  addProduct as addDbProduct, 
-  deleteProduct as deleteDbProduct,
-  getMessages as getDbMessages,
-  addMessage as addDbMessage,
-  deleteMessage as deleteDbMessage
-} from '@/lib/localdb';
+import connectDB from '@/lib/mongodb';
+import Product from '@/models/Product';
+import Message from '@/models/Message';
 import { revalidatePath } from 'next/cache';
-import fs from 'fs/promises';
-import path from 'path';
-
-export async function getProducts() {
-  return await getDbProducts();
-}
+import nodemailer from 'nodemailer';
 
 export async function addProduct(formData) {
   const name = formData.get('name');
   const category = formData.get('category');
   const price = formData.get('price');
-  const imageFile = formData.get('image');
+  const image = formData.get('image'); // Now expects a URL string, not a file
   
-  let imageUrl = '/featured_cement.png';
-
-  if (imageFile && imageFile.size > 0) {
-    try {
-      const buffer = Buffer.from(await imageFile.arrayBuffer());
-      const filename = `${Date.now()}-${imageFile.name.replace(/\\s/g, '_')}`;
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-      
-      await fs.mkdir(uploadDir, { recursive: true });
-      
-      const filepath = path.join(uploadDir, filename);
-      await fs.writeFile(filepath, buffer);
-      
-      imageUrl = `/uploads/${filename}`;
-    } catch (err) {
-      console.error("Error saving image:", err);
-    }
-  }
-
   try {
-    await addDbProduct({ name, category, price, image: imageUrl });
+    await connectDB();
+    await Product.create({ 
+      name, 
+      category, 
+      price, 
+      image: image || '/featured_cement.png' 
+    });
+    
     revalidatePath('/admin');
     revalidatePath('/products');
     return { success: true };
@@ -53,7 +31,8 @@ export async function addProduct(formData) {
 
 export async function deleteProduct(id) {
   try {
-    await deleteDbProduct(id);
+    await connectDB();
+    await Product.findByIdAndDelete(id);
     revalidatePath('/admin');
     revalidatePath('/products');
     return { success: true };
@@ -64,12 +43,6 @@ export async function deleteProduct(id) {
 
 // ---------------- Messages Actions ----------------
 
-export async function getMessages() {
-  return await getDbMessages();
-}
-
-import nodemailer from 'nodemailer';
-
 export async function submitContactForm(formData) {
   const name = formData.get('name');
   const email = formData.get('email');
@@ -77,14 +50,14 @@ export async function submitContactForm(formData) {
   const message = formData.get('message');
 
   try {
-    // 1. Save to local database
-    await addDbMessage({ name, email, phone, message });
+    await connectDB();
+    
+    // 1. Save to MongoDB
+    await Message.create({ name, email, phone, message });
     revalidatePath('/admin');
     
     // 2. Send Email Notification
     try {
-      // You need to configure this with a real email service or App Password in production.
-      // This looks for EMAIL_USER and EMAIL_PASS in your .env.local file
       if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
         const transporter = nodemailer.createTransport({
           service: 'gmail',
@@ -103,12 +76,9 @@ export async function submitContactForm(formData) {
 
         await transporter.sendMail(mailOptions);
         console.log("Email notification sent successfully.");
-      } else {
-        console.log("Email credentials not found in environment variables. Email notification skipped.");
       }
     } catch (emailError) {
       console.error("Failed to send email notification:", emailError);
-      // We don't throw here because we still successfully saved the message to the database
     }
 
     return { success: true };
@@ -119,7 +89,8 @@ export async function submitContactForm(formData) {
 
 export async function deleteMessageAction(id) {
   try {
-    await deleteDbMessage(id);
+    await connectDB();
+    await Message.findByIdAndDelete(id);
     revalidatePath('/admin');
     return { success: true };
   } catch (error) {

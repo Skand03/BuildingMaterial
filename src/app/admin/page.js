@@ -1,13 +1,22 @@
 import { addProduct, deleteProduct, deleteMessageAction } from './actions';
-import { getProducts, getMessages } from '@/lib/localdb';
+import connectDB from '@/lib/mongodb';
+import Product from '@/models/Product';
+import Message from '@/models/Message';
 import { Trash2, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-  const products = await getProducts();
-  const messages = await getMessages();
+  await connectDB();
+  
+  // Fetch from MongoDB
+  const productsDocs = await Product.find({}).sort({ createdAt: -1 }).lean();
+  const messagesDocs = await Message.find({}).sort({ createdAt: -1 }).lean();
+  
+  // Convert _id to string for Client Components
+  const products = productsDocs.map(p => ({ ...p, _id: p._id.toString() }));
+  const messages = messagesDocs.map(m => ({ ...m, _id: m._id.toString() }));
 
   return (
     <div style={{ paddingTop: '120px', minHeight: '100vh', paddingBottom: '4rem' }}>
@@ -86,8 +95,8 @@ export default async function AdminPage() {
                 <input type="text" name="price" className="input" placeholder="e.g. ₹400 / bag" required />
               </div>
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#CBD5E1' }}>Product Image</label>
-                <input type="file" name="image" className="input" accept="image/*" style={{ padding: '0.6rem' }} />
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#CBD5E1' }}>Image URL (Netlify Safe)</label>
+                <input type="text" name="image" className="input" placeholder="e.g. https://example.com/image.png" />
               </div>
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Add Product</button>
             </form>
@@ -104,7 +113,7 @@ export default async function AdminPage() {
                   <div key={product._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', flexWrap: 'wrap', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <div style={{ width: '50px', height: '50px', position: 'relative', borderRadius: '4px', overflow: 'hidden' }}>
-                        <Image src={product.image || '/featured_cement.png'} alt={product.name} layout="fill" objectFit="cover" />
+                        <Image src={product.image && product.image.startsWith('http') ? product.image : '/featured_cement.png'} alt={product.name} layout="fill" objectFit="cover" />
                       </div>
                       <div>
                         <h4 style={{ fontSize: '1.1rem' }}>{product.name}</h4>
