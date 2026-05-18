@@ -8,22 +8,57 @@ import Image from 'next/image';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-  await connectDB();
-  
-  // Fetch from MongoDB
-  const productsDocs = await Product.find({}).sort({ createdAt: -1 }).lean();
-  const messagesDocs = await Message.find({}).sort({ createdAt: -1 }).lean();
-  
-  // Convert _id to string for Client Components
-  const products = productsDocs.map(p => ({ ...p, _id: p._id.toString() }));
-  const messages = messagesDocs.map(m => ({ ...m, _id: m._id.toString() }));
+  let products = [];
+  let messages = [];
+  let dbError = null;
+
+  try {
+    await connectDB();
+    
+    // Fetch from MongoDB
+    const productsDocs = await Product.find({}).sort({ createdAt: -1 }).lean();
+    const messagesDocs = await Message.find({}).sort({ createdAt: -1 }).lean();
+    
+    // Convert _id to string for Client Components
+    products = productsDocs.map(p => ({ ...p, _id: p._id.toString() }));
+    messages = messagesDocs.map(m => ({ ...m, _id: m._id.toString() }));
+  } catch (error) {
+    console.error("Database connection error in AdminPage:", error.message);
+    dbError = error.message;
+  }
 
   return (
     <div style={{ paddingTop: '120px', minHeight: '100vh', paddingBottom: '4rem' }}>
       <div className="container">
         <h1 style={{ fontSize: '3rem', marginBottom: '2rem' }}>Admin <span className="text-primary">Dashboard</span></h1>
         
-        {/* Messages / Inquiries Section */}
+        {dbError ? (
+          <div className="card glass" style={{ borderColor: '#EF4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2.5rem' }}>
+            <h2 style={{ fontSize: '1.8rem', color: '#EF4444', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              ⚠️ Database Connection Failed
+            </h2>
+            <p style={{ color: '#CBD5E1', marginBottom: '1.5rem', lineHeight: '1.6' }}>
+              The secure Admin Dashboard is loaded, but it could not connect to your MongoDB Atlas cluster.
+            </p>
+            <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1.2rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', color: '#FCA5A5', marginBottom: '2rem', fontSize: '0.95rem' }}>
+              Error: {dbError}
+            </div>
+            
+            <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem', color: 'var(--primary-color)' }}>How to fix this:</h3>
+            <ol style={{ color: '#94A3B8', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', lineHeight: '1.5' }}>
+              <li>
+                <strong>Check your credentials:</strong> The database returns <em>bad auth : authentication failed</em>. This means the password in your connection string is incorrect.
+              </li>
+              <li>
+                <strong>Update Password in MongoDB Atlas:</strong> Log in to your <a href="https://cloud.mongodb.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-color)', textDecoration: 'underline' }}>MongoDB Atlas</a> dashboard, go to <strong>Database Access</strong> on the left, click <strong>Edit</strong> on your user <em>VenzioAdmin</em>, click <strong>Edit Password</strong>, set it to your correct password, and click <strong>Update User</strong>.
+              </li>
+              <li>
+                <strong>Verify your local connection string:</strong> Open your local project's <code>.env.local</code> file and make sure the password does not contain any angle brackets like <code>&lt;</code> or <code>&gt;</code> (the password should be exactly your password, e.g., <code>root123</code>).
+              </li>
+            </ol>
+          </div>
+        ) : (
+          <>
         <div className="card glass" style={{ marginBottom: '4rem' }}>
           <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <MessageCircle className="text-primary" /> Customer Inquiries
@@ -132,6 +167,8 @@ export default async function AdminPage() {
           </div>
 
         </div>
+      </>
+    )}
       </div>
     </div>
   );
